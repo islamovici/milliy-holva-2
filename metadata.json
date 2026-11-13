@@ -1,0 +1,11 @@
+{
+  "name": "Remix Milliy Holva - Telegram Bot \u0026 Mini App",
+  "description": "Milliy Holva premium mahsulotlarini kofe xonalar va do\u0027konlarga yetkazib berish, lokatsiyalar, ombor zaxirasi va buyurtmalar hisobi tizimi.",
+  "requestFramePermissions": [
+    "geolocation",
+    "camera"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

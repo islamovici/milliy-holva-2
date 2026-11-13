@@ -1,0 +1,252 @@
+{
+  "entities": {
+    "AdminProfile": {
+      "title": "AdminProfile",
+      "description": "Co-founder administrator account profile",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "role": {
+          "type": "string",
+          "enum": ["admin"]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["uid", "name", "role", "createdAt"]
+    },
+    "PointOfSale": {
+      "title": "PointOfSale",
+      "description": "Registered customer store or coffee shop location",
+      "type": "object",
+      "properties": {
+        "ownerId": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "type": {
+          "type": "string",
+          "enum": ["coffee", "market", "supermarket"]
+        },
+        "district": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "address": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 250
+        },
+        "latitude": {
+          "type": "number"
+        },
+        "longitude": {
+          "type": "number"
+        },
+        "totalDeliveredPremium": {
+          "type": "number"
+        },
+        "totalDeliveredCacao": {
+          "type": "number"
+        },
+        "totalRevenueUZS": {
+          "type": "number"
+        },
+        "unpaidBalanceUZS": {
+          "type": "number"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "ownerId",
+        "name",
+        "type",
+        "district",
+        "address",
+        "latitude",
+        "longitude",
+        "totalDeliveredPremium",
+        "totalDeliveredCacao",
+        "totalRevenueUZS",
+        "unpaidBalanceUZS",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "PointPrivateContact": {
+      "title": "PointPrivateContact",
+      "description": "Isolated PII contact details for a PointOfSale",
+      "type": "object",
+      "properties": {
+        "ownerId": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "managerName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "phone": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 40
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["ownerId", "managerName", "phone", "createdAt", "updatedAt"]
+    },
+    "CustomerOrder": {
+      "title": "CustomerOrder",
+      "description": "Order placed by a registered store or coffee shop",
+      "type": "object",
+      "properties": {
+        "ownerId": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "pointId": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "pointName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "qtyPremium": {
+          "type": "number"
+        },
+        "qtyCacao": {
+          "type": "number"
+        },
+        "totalSumUZS": {
+          "type": "number"
+        },
+        "requestedDate": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 40
+        },
+        "requestedTime": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 40
+        },
+        "status": {
+          "type": "string",
+          "enum": ["pending", "confirmed", "delivered", "cancelled"]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "ownerId",
+        "pointId",
+        "pointName",
+        "qtyPremium",
+        "qtyCacao",
+        "totalSumUZS",
+        "requestedDate",
+        "requestedTime",
+        "status",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "WarehouseState": {
+      "title": "WarehouseState",
+      "description": "Central warehouse stock state managed by co-founder admins",
+      "type": "object",
+      "properties": {
+        "qtyPremium": {
+          "type": "number"
+        },
+        "qtyCacao": {
+          "type": "number"
+        },
+        "minAlertThreshold": {
+          "type": "number"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["qtyPremium", "qtyCacao", "minAlertThreshold", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/admins/{adminId}": {
+      "schema": {
+        "$ref": "#/entities/AdminProfile"
+      },
+      "description": "Co-founder admin registry"
+    },
+    "/points/{pointId}": {
+      "schema": {
+        "$ref": "#/entities/PointOfSale"
+      },
+      "description": "Public store and coffee shop locations"
+    },
+    "/points/{pointId}/private/{docId}": {
+      "schema": {
+        "$ref": "#/entities/PointPrivateContact"
+      },
+      "description": "Isolated PII contact info for store owners and admins"
+    },
+    "/orders/{orderId}": {
+      "schema": {
+        "$ref": "#/entities/CustomerOrder"
+      },
+      "description": "Customer product orders"
+    },
+    "/warehouse/{docId}": {
+      "schema": {
+        "$ref": "#/entities/WarehouseState"
+      },
+      "description": "Warehouse inventory counts"
+    }
+  }
+}

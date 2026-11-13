@@ -1,0 +1,273 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 1. Global Safety Net (Default Deny)
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // 2. Global Primitives
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerifiedUser() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isBootstrappedAdmin() {
+      return isVerifiedUser()
+        && request.auth.token.email is string
+        && request.auth.token.email.size() <= 120
+        && request.auth.token.email == 'ibroxim6606@gmail.com';
+    }
+
+    function isAdmin() {
+      return isBootstrappedAdmin()
+        || (isVerifiedUser() && exists(/databases/$(database)/documents/admins/$(request.auth.uid)));
+    }
+
+    // 3. Entity Validation Helpers (Anti-Update-Gap)
+    function isValidAdminProfile(data) {
+      return data.keys().hasAll(['uid', 'name', 'role', 'createdAt'])
+        && data.keys().hasOnly(['uid', 'name', 'role', 'createdAt'])
+        && data.uid is string && data.uid.size() >= 1 && data.uid.size() <= 128 && data.uid.matches('^[a-zA-Z0-9_\\-]+$')
+        && data.name is string && data.name.size() >= 1 && data.name.size() <= 100
+        && data.role is string && data.role.size() <= 20 && data.role == 'admin'
+        && data.createdAt is timestamp;
+    }
+
+    function isValidPointOfSale(data) {
+      return data.keys().hasAll([
+          'ownerId', 'name', 'type', 'district', 'address',
+          'latitude', 'longitude', 'totalDeliveredPremium',
+          'totalDeliveredCacao', 'totalRevenueUZS', 'unpaidBalanceUZS',
+          'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'ownerId', 'name', 'type', 'district', 'address',
+          'latitude', 'longitude', 'totalDeliveredPremium',
+          'totalDeliveredCacao', 'totalRevenueUZS', 'unpaidBalanceUZS',
+          'createdAt', 'updatedAt'
+        ])
+        && data.ownerId is string && data.ownerId.size() >= 1 && data.ownerId.size() <= 128 && data.ownerId.matches('^[a-zA-Z0-9_\\-]+$')
+        && data.name is string && data.name.size() >= 1 && data.name.size() <= 120
+        && data.type is string && data.type.size() <= 20 && (data.type == 'coffee' || data.type == 'market' || data.type == 'supermarket')
+        && data.district is string && data.district.size() >= 1 && data.district.size() <= 80
+        && data.address is string && data.address.size() >= 1 && data.address.size() <= 250
+        && data.latitude is number && data.latitude >= -90 && data.latitude <= 90
+        && data.longitude is number && data.longitude >= -180 && data.longitude <= 180
+        && data.totalDeliveredPremium is number && data.totalDeliveredPremium >= 0
+        && data.totalDeliveredCacao is number && data.totalDeliveredCacao >= 0
+        && data.totalRevenueUZS is number && data.totalRevenueUZS >= 0
+        && data.unpaidBalanceUZS is number && data.unpaidBalanceUZS >= 0
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidPointPrivateContact(data) {
+      return data.keys().hasAll(['ownerId', 'managerName', 'phone', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['ownerId', 'managerName', 'phone', 'createdAt', 'updatedAt'])
+        && data.ownerId is string && data.ownerId.size() >= 1 && data.ownerId.size() <= 128 && data.ownerId.matches('^[a-zA-Z0-9_\\-]+$')
+        && data.managerName is string && data.managerName.size() >= 1 && data.managerName.size() <= 100
+        && data.phone is string && data.phone.size() >= 3 && data.phone.size() <= 40
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidCustomerOrder(data) {
+      return data.keys().hasAll([
+          'ownerId', 'pointId', 'pointName', 'qtyPremium',
+          'qtyCacao', 'totalSumUZS', 'requestedDate',
+          'requestedTime', 'status', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'ownerId', 'pointId', 'pointName', 'qtyPremium',
+          'qtyCacao', 'totalSumUZS', 'requestedDate',
+          'requestedTime', 'status', 'createdAt', 'updatedAt'
+        ])
+        && data.ownerId is string && data.ownerId.size() >= 1 && data.ownerId.size() <= 128 && data.ownerId.matches('^[a-zA-Z0-9_\\-]+$')
+        && data.pointId is string && data.pointId.size() >= 1 && data.pointId.size() <= 128 && data.pointId.matches('^[a-zA-Z0-9_\\-]+$')
+        && data.pointName is string && data.pointName.size() >= 1 && data.pointName.size() <= 120
+        && data.qtyPremium is number && data.qtyPremium >= 0 && data.qtyPremium <= 10000
+        && data.qtyCacao is number && data.qtyCacao >= 0 && data.qtyCacao <= 10000
+        && (data.qtyPremium + data.qtyCacao) > 0
+        && data.totalSumUZS is number && data.totalSumUZS >= 0
+        && data.requestedDate is string && data.requestedDate.size() >= 1 && data.requestedDate.size() <= 40
+        && data.requestedTime is string && data.requestedTime.size() >= 1 && data.requestedTime.size() <= 40
+        && data.status is string && data.status.size() <= 20
+        && (data.status == 'pending' || data.status == 'confirmed' || data.status == 'delivered' || data.status == 'cancelled')
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidWarehouseState(data) {
+      return data.keys().hasAll(['qtyPremium', 'qtyCacao', 'minAlertThreshold', 'updatedAt'])
+        && data.keys().hasOnly(['qtyPremium', 'qtyCacao', 'minAlertThreshold', 'updatedAt'])
+        && data.qtyPremium is number && data.qtyPremium >= 0
+        && data.qtyCacao is number && data.qtyCacao >= 0
+        && data.minAlertThreshold is number && data.minAlertThreshold >= 0
+        && data.updatedAt is timestamp;
+    }
+
+    // 4. Collection Rules
+    match /admins/{adminId} {
+      allow get: if isVerifiedUser() && isValidId(adminId) && (request.auth.uid == adminId || isAdmin());
+      allow list: if isVerifiedUser() && resource.data.uid == request.auth.uid;
+      allow create: if isVerifiedUser()
+        && isValidId(adminId)
+        && isValidAdminProfile(incoming())
+        && incoming().uid == adminId
+        && incoming().createdAt == request.time
+        && isAdmin();
+      allow update: if isVerifiedUser()
+        && isValidId(adminId)
+        && isValidAdminProfile(incoming())
+        && incoming().uid == existing().uid
+        && incoming().createdAt == existing().createdAt
+        && incoming().diff(existing()).affectedKeys().hasOnly(['name'])
+        && isAdmin();
+      allow delete: if isVerifiedUser() && isValidId(adminId) && isAdmin();
+    }
+
+    match /points/{pointId} {
+      allow get: if isVerifiedUser() && isValidId(pointId) && (existing().ownerId == request.auth.uid || isAdmin());
+      allow list: if isVerifiedUser() && (resource.data.ownerId == request.auth.uid || isBootstrappedAdmin());
+      allow create: if isVerifiedUser()
+        && isValidId(pointId)
+        && isValidPointOfSale(incoming())
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time
+        && (
+          (incoming().ownerId == request.auth.uid
+            && incoming().totalDeliveredPremium == 0
+            && incoming().totalDeliveredCacao == 0
+            && incoming().totalRevenueUZS == 0
+            && incoming().unpaidBalanceUZS == 0)
+          || isAdmin()
+        );
+      allow update: if isVerifiedUser()
+        && isValidId(pointId)
+        && isValidPointOfSale(incoming())
+        && incoming().ownerId == existing().ownerId
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          (existing().ownerId == request.auth.uid
+            && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'type', 'district', 'address', 'latitude', 'longitude', 'updatedAt']))
+          || (isAdmin()
+            && incoming().diff(existing()).affectedKeys().hasOnly([
+              'name', 'type', 'district', 'address', 'latitude', 'longitude',
+              'totalDeliveredPremium', 'totalDeliveredCacao', 'totalRevenueUZS',
+              'unpaidBalanceUZS', 'updatedAt'
+            ]))
+        );
+      allow delete: if isVerifiedUser() && isValidId(pointId) && isAdmin();
+
+      match /private/{docId} {
+        allow get: if isVerifiedUser()
+          && isValidId(pointId)
+          && isValidId(docId)
+          && exists(/databases/$(database)/documents/points/$(pointId))
+          && (
+            get(/databases/$(database)/documents/points/$(pointId)).data.ownerId == request.auth.uid
+            || isAdmin()
+          );
+        allow list: if false;
+        allow create: if isVerifiedUser()
+          && isValidId(pointId)
+          && isValidId(docId)
+          && isValidPointPrivateContact(incoming())
+          && incoming().createdAt == request.time
+          && incoming().updatedAt == request.time
+          && existsAfter(/databases/$(database)/documents/points/$(pointId))
+          && (
+            (incoming().ownerId == request.auth.uid
+              && getAfter(/databases/$(database)/documents/points/$(pointId)).data.ownerId == request.auth.uid)
+            || isAdmin()
+          );
+        allow update: if isVerifiedUser()
+          && isValidId(pointId)
+          && isValidId(docId)
+          && isValidPointPrivateContact(incoming())
+          && incoming().ownerId == existing().ownerId
+          && incoming().createdAt == existing().createdAt
+          && incoming().updatedAt == request.time
+          && incoming().diff(existing()).affectedKeys().hasOnly(['managerName', 'phone', 'updatedAt'])
+          && exists(/databases/$(database)/documents/points/$(pointId))
+          && (
+            (existing().ownerId == request.auth.uid
+              && get(/databases/$(database)/documents/points/$(pointId)).data.ownerId == request.auth.uid)
+            || isAdmin()
+          );
+        allow delete: if isVerifiedUser() && isValidId(pointId) && isValidId(docId) && isAdmin();
+      }
+    }
+
+    match /orders/{orderId} {
+      allow get: if isVerifiedUser() && isValidId(orderId) && (existing().ownerId == request.auth.uid || isAdmin());
+      allow list: if isVerifiedUser() && (resource.data.ownerId == request.auth.uid || isBootstrappedAdmin());
+      allow create: if isVerifiedUser()
+        && isValidId(orderId)
+        && isValidCustomerOrder(incoming())
+        && incoming().status == 'pending'
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time
+        && exists(/databases/$(database)/documents/points/$(incoming().pointId))
+        && (
+          (incoming().ownerId == request.auth.uid
+            && get(/databases/$(database)/documents/points/$(incoming().pointId)).data.ownerId == request.auth.uid)
+          || isAdmin()
+        );
+      allow update: if isVerifiedUser()
+        && isValidId(orderId)
+        && isValidCustomerOrder(incoming())
+        && incoming().ownerId == existing().ownerId
+        && incoming().pointId == existing().pointId
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          (existing().ownerId == request.auth.uid
+            && existing().status == 'pending'
+            && incoming().status == 'cancelled'
+            && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt']))
+          || (isAdmin()
+            && incoming().diff(existing()).affectedKeys().hasOnly([
+              'pointName', 'qtyPremium', 'qtyCacao', 'totalSumUZS',
+              'requestedDate', 'requestedTime', 'status', 'updatedAt'
+            ]))
+        );
+      allow delete: if isVerifiedUser() && isValidId(orderId) && isAdmin();
+    }
+
+    match /warehouse/{docId} {
+      allow get: if isVerifiedUser() && isValidId(docId);
+      allow list: if false;
+      allow create: if isVerifiedUser()
+        && isValidId(docId)
+        && isValidWarehouseState(incoming())
+        && incoming().updatedAt == request.time
+        && isAdmin();
+      allow update: if isVerifiedUser()
+        && isValidId(docId)
+        && isValidWarehouseState(incoming())
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly(['qtyPremium', 'qtyCacao', 'minAlertThreshold', 'updatedAt'])
+        && isAdmin();
+      allow delete: if false;
+    }
+  }
+}
